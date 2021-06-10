@@ -1,6 +1,6 @@
 import tensorflow as tf
 import autokeras as ak
-from tools import load_data
+from tools import load_images
 from sklearn.model_selection import train_test_split
 import numpy as np
 
