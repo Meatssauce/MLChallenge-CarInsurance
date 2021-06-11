@@ -7,6 +7,7 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.models import Model
 from tensorflow.keras import activations
 from tensorflow.python.keras.backend import int_shape
+from sklearn.metrics import f1_score, r2_score
 
 from tools import load_images, Preprocessor
 
@@ -15,14 +16,14 @@ def make_model(img_height, img_width, metadata_dim):
     image_input = Input(shape=(img_height, img_width, 3), name='image')
     tabular_input = Input(metadata_dim, name='metadata')
 
-    experimental.preprocessing.Rescaling(1./225)
+    # experimental.preprocessing.Rescaling(1./225)
     experimental.preprocessing.RandomFlip()
     experimental.preprocessing.RandomZoom(0.2)
     experimental.preprocessing.RandomRotation(0.2)
 
     resnet_output = ResNet50(weights=None, include_top=False)(image_input)
-    image_features = GlobalAveragePooling2D()(resnet_output)  #?
-    image_features = Dropout(0.7)(image_features)  #?
+    image_features = GlobalAveragePooling2D()(resnet_output)  # ?
+    image_features = Dropout(0.5)(image_features)  # ?
 
     metadata_features = Dense(metadata_dim // 2)(tabular_input)
     metadata_features = BatchNormalization()(metadata_features)
@@ -34,9 +35,10 @@ def make_model(img_height, img_width, metadata_dim):
 
     x = concatenate([image_features, metadata_features])
 
-    x = Dense(int_shape(x)[1] // 2)(x)
+    x = Dense(int_shape(x)[1] // 2, kernel_regularizer='l1')(x)
     x = BatchNormalization()(x)
     x = Activation(activations.relu)(x)
+    x = Dropout(0.2)(x)
 
     condition_pred = Dense(1, activation='softmax', name='condition')(x)
     amount_pred = Dense(1, name='amount')(x)
@@ -53,7 +55,8 @@ def make_model(img_height, img_width, metadata_dim):
                       'condition': tf.keras.losses.BinaryCrossentropy(from_logits=True),
                       'amount': tf.keras.losses.MeanSquaredError(),
                   },
-                  loss_weights=[1.0, 1.0])
+                  loss_weights=[1.0, 1.0],
+                  )
 
     return model
 
@@ -92,7 +95,26 @@ def main():
     )
     # val_condition_loss: 0.1842 - val_amount_loss: 6983358.5000
 
-    model.save('car-Insurance-tabular-resNet.h5')
+    try:
+        model.save("car-Insurance-tabular-resNet", save_format="tf")
+    except Exception:
+        model.save('car-Insurance-tabular-resNet.h5')
+
+    model.evaluate(
+        {'image': test_images, 'metadata': test_df},
+        {'condition': test_conditions, 'amount': test_amount}
+    )
+
+    predicted_conditions, predicted_amount = model.predict(
+        {'image': test_images, 'metadata': test_df}
+    )
+
+    condition_score = max(0, 100 * f1_score(test_conditions, predicted_conditions, average='macro'))
+    amount_score = max(0, 100 * r2_score(test_amount, predicted_amount))
+
+    print(f'Classifier score: {condition_score:.4f}')
+    print(f'Regressor score: {amount_score:.4f}')
+    print(f'Final score: {np.mean([condition_score, amount_score])}')
 
     return
 
