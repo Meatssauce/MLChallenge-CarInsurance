@@ -1,6 +1,6 @@
 import tensorflow as tf
 from sklearn.utils import compute_class_weight
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Dense, concatenate, BatchNormalization, Flatten
+from tensorflow.keras.layers import *
 from tensorflow.keras.models import Model
 from tensorflow.keras.activations import elu, softmax
 from tensorflow import identity
@@ -14,10 +14,15 @@ from tools import load_images, Preprocessor
 def get_typeNet(input_shape=(96, 96, 1), output_size=1, num_top_features=128):
     assert len(input_shape) == 3 and input_shape[0] == input_shape[1]
 
-    last_conv_size = 128
-
     image = Input(shape=input_shape)
-    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', activation=elu, use_bias=False)(image)
+
+    x = experimental.preprocessing.RandomFlip()(image)
+    x = experimental.preprocessing.RandomZoom(0.2)(x)
+    x = experimental.preprocessing.RandomRotation(0.2)(x)
+
+
+    last_conv_size = 128
+    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', activation=elu, use_bias=False)(x)
     x = BatchNormalization()(x)
     x = Conv2D(filters=128, kernel_size=3, strides=2, padding='same', activation=elu, use_bias=False)(x)
     x = BatchNormalization()(x)
@@ -95,12 +100,12 @@ def main():
         callbacks=[early_stopping],
         class_weight=class_weights
     )
-    # loss: 0.0022 - accuracy: 0.9257 - val_loss: 0.3291 - val_accuracy: 0.9459
+    # - loss: 0.6305 - accuracy: 0.9257 - val_loss: 0.2933 - val_accuracy: 0.9459
 
     try:
-        model.save("car-Insurance-tabular-resNet", save_format="tf")
+        model.save("TypeNetClassifier", save_format="tf")
     except Exception:
-        model.save('car-Insurance-tabular-resNet.h5')
+        model.save('TypeNetClassifier.h5')
 
     model.evaluate(test_images, test_conditions)
 
@@ -108,6 +113,8 @@ def main():
 
     condition_score = max(0, 100 * f1_score(test_conditions, predicted_conditions, average='macro'))
     print(f'Classifier score: {condition_score:.4f}')
+    # - loss: 0.3207 - accuracy: 0.9245
+    # Classifier score: 48.0374
 
     return
 

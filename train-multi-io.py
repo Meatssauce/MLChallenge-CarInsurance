@@ -17,12 +17,12 @@ def make_model(img_height, img_width, metadata_dim):
     tabular_input = Input(metadata_dim, name='metadata')
 
     # experimental.preprocessing.Rescaling(1./225)
-    experimental.preprocessing.RandomFlip()
-    experimental.preprocessing.RandomZoom(0.2)
-    experimental.preprocessing.RandomRotation(0.2)
+    image_features = experimental.preprocessing.RandomFlip()(image_input)
+    image_features = experimental.preprocessing.RandomZoom(0.2)(image_features)
+    image_features = experimental.preprocessing.RandomRotation(0.2)(image_features)
 
-    resnet_output = ResNet50(weights=None, include_top=False)(image_input)
-    image_features = GlobalAveragePooling2D()(resnet_output)  # ?
+    image_features = ResNet50(weights=None, include_top=False)(image_features)
+    image_features = GlobalAveragePooling2D()(image_features)  # ?
     image_features = Dropout(0.5)(image_features)  # ?
 
     metadata_features = Dense(metadata_dim // 2)(tabular_input)
@@ -41,7 +41,7 @@ def make_model(img_height, img_width, metadata_dim):
     x = Dropout(0.2)(x)
 
     condition_pred = Dense(1, activation='softmax', name='condition')(x)
-    amount_pred = Dense(1, name='amount')(x)
+    amount_pred = Dense(1, activation='relu', name='amount')(x)
 
     model = Model(inputs=[image_input, tabular_input],
                   outputs=[condition_pred, amount_pred],
@@ -55,7 +55,7 @@ def make_model(img_height, img_width, metadata_dim):
                       'condition': tf.keras.losses.BinaryCrossentropy(from_logits=True),
                       'amount': tf.keras.losses.MeanSquaredError(),
                   },
-                  loss_weights=[1.0, 1.0],
+                  loss_weights=[0.5, 0.5],
                   )
 
     return model
@@ -70,7 +70,7 @@ def main():
     df = df.dropna(axis=0, how='any', subset=['Amount', 'Condition'])
     df['Images'] = load_images(df, directory='dataset/trainImages', size=(img_height, img_width), grey_scale=False)
 
-    train_df, test_df = train_test_split(df, test_size=0.2)
+    train_df, test_df = train_test_split(df, test_size=0.2, shuffle=True, random_state=seed)
     train_images = np.asarray(train_df.pop('Images').to_list())
     test_images = np.asarray(test_df.pop('Images').to_list())
     train_conditions, train_amount = np.asarray(train_df.pop('Condition')), np.asarray(train_df.pop('Amount'))
@@ -93,12 +93,11 @@ def main():
         batch_size=batch_size,
         callbacks=[early_stopping]
     )
-    # val_condition_loss: 0.1842 - val_amount_loss: 6983358.5000
 
     try:
-        model.save("car-Insurance-tabular-resNet", save_format="tf")
+        model.save("ResNetClassifier", save_format="tf")
     except Exception:
-        model.save('car-Insurance-tabular-resNet.h5')
+        model.save('ResNetClassifier.h5')
 
     model.evaluate(
         {'image': test_images, 'metadata': test_df},
@@ -115,6 +114,15 @@ def main():
     print(f'Classifier score: {condition_score:.4f}')
     print(f'Regressor score: {amount_score:.4f}')
     print(f'Final score: {np.mean([condition_score, amount_score])}')
+    # - loss: 3089601.2500 - condition_loss: 0.1271 - amount_loss: 6177159.0000
+    # Classifier score: 48.0374
+    # Regressor score: 12.2649
+    # Final score: 30.151143638181665
+
+    # - loss: 3163251.0000 - condition_loss: 0.1059 - amount_loss: 6323905.5000
+    # Classifier score: 48.0374
+    # Regressor score: 10.1807
+    # Final score: 29.1090265593996
 
     return
 
