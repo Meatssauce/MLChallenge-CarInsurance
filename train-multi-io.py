@@ -1,3 +1,4 @@
+import cv2
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -22,8 +23,8 @@ def make_model(img_height, img_width, metadata_dim):
     image_features = experimental.preprocessing.RandomRotation(0.2)(image_features)
 
     image_features = ResNet50(weights=None, include_top=False)(image_features)
-    image_features = GlobalAveragePooling2D()(image_features)  # ?
-    image_features = Dropout(0.5)(image_features)  # ?
+    image_features = GlobalAveragePooling2D()(image_features)
+    image_features = Dropout(0.5)(image_features)
 
     metadata_features = Dense(metadata_dim // 2)(tabular_input)
     metadata_features = BatchNormalization()(metadata_features)
@@ -61,6 +62,18 @@ def make_model(img_height, img_width, metadata_dim):
     return model
 
 
+def remove_blurry(df):
+    threshold = 100
+    for i in df.index:
+        gray = cv2.cvtColor(df.loc[i, 'Images'], cv2.COLOR_BGR2GRAY)
+        fm = cv2.Laplacian(gray, cv2.CV_64F).var()
+
+        if fm < threshold:
+            df = df.drop(i)
+
+    return df
+
+
 def main():
     seed = 42
     img_height, img_width = 128, 128
@@ -71,6 +84,9 @@ def main():
     df['Images'] = load_images(df, directory='dataset/trainImages', size=(img_height, img_width), grey_scale=False)
 
     train_df, test_df = train_test_split(df, test_size=0.2, shuffle=True, random_state=seed)
+
+    # train_df = remove_blurry(train_df)
+
     train_images = np.asarray(train_df.pop('Images').to_list())
     test_images = np.asarray(test_df.pop('Images').to_list())
     train_conditions, train_amount = np.asarray(train_df.pop('Condition')), np.asarray(train_df.pop('Amount'))

@@ -1,2 +1,0 @@
-ML Challenge Page URL:
-https://www.hackerearth.com/challenges/competitive/hackerearth-machine-learning-challenge-vehicle-insurance-claim/machine-learning/predict-the-condition-and-insurance-amount-21-fb647347/

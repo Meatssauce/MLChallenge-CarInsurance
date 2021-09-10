@@ -20,7 +20,6 @@ def get_typeNet(input_shape=(96, 96, 1), output_size=1, num_top_features=128):
     x = experimental.preprocessing.RandomZoom(0.2)(x)
     x = experimental.preprocessing.RandomRotation(0.2)(x)
 
-
     last_conv_size = 128
     x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', activation=elu, use_bias=False)(x)
     x = BatchNormalization()(x)

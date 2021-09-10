@@ -3,6 +3,7 @@ from sklearn.utils import compute_class_weight
 from tensorflow.keras.layers import *
 from tensorflow.keras.models import Model
 from tensorflow.keras.activations import relu, elu, softmax
+from tensorflow.keras.backend import int_shape
 from tensorflow import identity
 import pandas as pd
 import numpy as np
@@ -18,12 +19,12 @@ def get_typeNet(n_table_cols, image_shape=(128, 128, 1), output_size=(1, 1), num
     image = Input(shape=image_shape, name='image')
 
     x1 = Dense(n_table_cols // 2)(table)
-    x1 = BatchNormalization()(x1)
     x1 = Activation(relu)(x1)
+    x1 = BatchNormalization()(x1)
 
     x1 = Dense(n_table_cols // 3)(x1)
-    x1 = BatchNormalization()(x1)
     x1 = Activation(relu)(x1)
+    x1 = BatchNormalization()(x1)
 
     x2 = experimental.preprocessing.RandomFlip()(image)
     x2 = experimental.preprocessing.RandomZoom(0.2)(x2)
@@ -143,6 +144,7 @@ def main():
     # - loss: 3540382.2500 - condition_loss: 0.2490 - amount_loss: 7080763.5000
     # Classifier score: 48.0374
     # Regressor score: 0.0000
+    # Final score: 24.018691588785046
 
     return
 

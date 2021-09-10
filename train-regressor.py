@@ -26,8 +26,9 @@ def main():
     train_amount = np.asarray(train_df.pop('Amount'))
     test_amount = np.asarray(test_df.pop('Amount'))
 
-    model = ak.ImageRegressor(overwrite=True, max_trials=5)
-    model.fit(train_images, train_amount, validation_split=0.2)
+    # model = ak.ImageRegressor(overwrite=True, max_trials=5)
+    # model.fit(train_images, train_amount, validation_split=0.2)
+    model = tf.keras.models.load_model('regressor_model_autokeras')
     model.evaluate(test_images, test_amount)
     # loss: 8428122.0000 - mean_squared_error: 8428122.0000
 
